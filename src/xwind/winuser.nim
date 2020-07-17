@@ -1,22 +1,43 @@
 {.pragma: libUser32, stdcall, dynlib: "User32.dll".}
 
 
-# int MessageBox(
-#   HWND    hWnd,
-#   LPCTSTR lpText,
-#   LPCTSTR lpCaption,
-#   UINT    uType
-# );
-
-
 type
   HANDLE* = int
   HWND* = HANDLE
 
+  WINBOOL* = int32
+
   WCHAR* = uint16
   LPCWSTR* = ptr WCHAR
   LPCTSTR* = LPCWSTR
+  PWCHAR* = ptr WCHAR
+  LPWCH* = ptr WCHAR
+  PWCH* = ptr WCHAR
+  LPCWCH* = ptr WCHAR
+  PCWCH* = ptr WCHAR
+  NWPSTR* = ptr WCHAR
+  LPWSTR* = ptr WCHAR
+  PWSTR* = ptr WCHAR
+  PZPWSTR* = ptr PWSTR
+  PCZPWSTR* = ptr PWSTR
+  LPUWSTR* = ptr WCHAR
+  PUWSTR* = ptr WCHAR
+  PCWSTR* = ptr WCHAR
+  PZPCWSTR* = ptr PCWSTR
+  LPCUWSTR* = ptr WCHAR
+  PCUWSTR* = ptr WCHAR
+
   UINT* = uint32
+
+  LPSTR* = cstring
+
+  BYTE* = uint8
+  WORD* = uint16
+  DWORD* = int32
+  PWORD* = ptr WORD
+  LPWORD* = ptr WORD
+  PDWORD* = ptr DWORD
+  LPDWORD* = ptr DWORD
 
 const
   MB_OK* = 0x00000000
@@ -181,18 +202,79 @@ proc messageBox*(hwnd: int, lpText: WideCStringObj,
 proc getSystemMetrics*(nIndex: cint): cint {.importc: "GetSystemMetrics", libUser32.} =
   ## Retrieves the specified system metric or system configuration setting.
 
+proc lockWorkStation*(): bool {.importc: "LockWorkStation", libUser32.} =
+  ## Locks the screen.
+
+
+# type
+#   ComputerNameFormat* {.pure.} = enum
+#     ComputerNameNetBIOS,
+#     ComputerNameDnsHostname,
+#     ComputerNameDnsDomain,
+#     ComputerNameDnsFullyQualified,
+#     ComputerNamePhysicalNetBIOS,
+#     ComputerNamePhysicalDnsHostname,
+#     ComputerNamePhysicalDnsDomain,
+#     ComputerNamePhysicalDnsFullyQualified,
+#     ComputerNameMax
+
+# proc getComputerNameExA*(nameType: ComputerNameFormat, 
+#                          lpBuffer: LPSTR, nSize: LPDWORD): bool {.importc: "GetComputerNameExA", libUser32.}
+
+# proc getComputerNameExW*(nameType: ComputerNameFormat, 
+#                          lpBuffer: LPWSTR, nSize: LPDWORD): bool {.importc: "GetComputerNameExW", libUser32.}
+
+# proc getComputerNameEx*(nameType: ComputerNameFormat, 
+#                         lpBuffer: string, nSize: int): bool {.inline.} =
+#   ## Gets a type of the computer name(UTF-8 version).
+#   getComputerNameExA(nameType, lpBuffer.cstring,  cast[LPDWORD](nSize))
+
+# proc getComputerNameEx*(nameType: ComputerNameFormat, 
+#                         lpBuffer: WideCStringObj, nSize: int): bool {.inline.} =
+#   ## Gets a type of the computer name(Unicode version).
+#   getComputerNameExW(nameType, cast[LPCWSTR](lpBuffer),  cast[LPDWORD](nSize))
+
+
+{.pragma: libKernel32, stdcall, dynlib: "Kernel32.dll".}
+
+const
+  MaxComputerLength* = 15
+
+proc getLastError*(): DWORD {.importc: "GetLastError", libKernel32.}
+
+proc getComputerNameA*(lpBuffer: LPSTR, 
+                         nSize: LPDWORD): WINBOOL {.importc: "GetComputerNameA", libKernel32.}
+
+proc getComputerNameW*(lpBuffer: LPWSTR, 
+                         nSize: LPDWORD): WINBOOL {.importc: "GetComputerNameW", libKernel32.}
+
+proc getComputerNameA*(nSize: int): string {.inline.} =
+  ## Gets a type of the computer name(UTF-8 version).
+  result = newString(nSize)
+  discard getComputerNameA(result.cstring, cast[LPDWORD](unsafeAddr nSize))
+
+proc getComputerNameW*(nSize: int): WideCStringObj {.inline.} =
+  ## Gets a type of the computer name(Unicode version).
+  new result
+  discard getComputerNameW(cast[LPCWSTR](result), cast[LPDWORD](unsafeAddr nSize))
+
 
 
 when isMainModule:
   import strformat
 
   # MessageBox
-  discard messageBox(0, "Resource not available\nDo you want to try again?还好",
-                     "Hello, Nim", MB_ICONWARNING or MB_CANCELTRYCONTINUE or MB_DEFBUTTON2)
+  # discard messageBox(0, "Resource not available\nDo you want to try again?还好",
+  #                    "Hello, Nim", MB_ICONWARNING or MB_CANCELTRYCONTINUE or MB_DEFBUTTON2)
 
-  discard messageBox(0, newWideCString("Resource not available\n你想测试吗?"),
-                     newWideCString("Account Details"), MB_ICONWARNING or MB_CANCELTRYCONTINUE or MB_DEFBUTTON2)
+  # discard messageBox(0, newWideCString("Resource not available\n你想测试吗?"),
+  #                    newWideCString("Account Details"), MB_ICONWARNING or MB_CANCELTRYCONTINUE or MB_DEFBUTTON2)
 
   # Get width and height of the screen
-  echo fmt"{getSystemMetrics(SM_CXSCREEN) = }"
-  echo fmt"{getSystemMetrics(SM_CYSCREEN) = }"
+  doAssert fmt"{getSystemMetrics(SM_CXSCREEN) = }" == "getSystemMetrics(SM_CXSCREEN) = 1366"
+  doAssert fmt"{getSystemMetrics(SM_CYSCREEN) = }" == "getSystemMetrics(SM_CYSCREEN) = 768"
+
+  # Get computer name
+  echo getComputerNameA(MaxComputerLength + 20)
+  echo getComputerNameW(MaxComputerLength + 100)
+
